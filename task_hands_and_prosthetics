@@ -1,0 +1,253 @@
+#!/usr/bin/env python2
+from __future__ import division  # so that 1/3=0.333 instead of 1/3=0
+from psychopy import visual, core, event,data, sound, core
+import os
+import itertools
+import numpy as np
+_thisDir = os.path.dirname(os.path.abspath( __file__))
+import csv
+import sys
+TRIAL_REPETITION = 24
+pTRIAL_REPETITION = 2
+response_left = ['a','A']
+response_right = ['l','L']
+RIGHT = 0
+LEFT = 1
+responses = response_right + response_left
+LOG_HEADER = ['prime_side','prime_type','target_side','congruency','rt','accuracy','response']
+
+def quit(log):
+	log.close()
+	core.quit()
+
+highA = sound.Sound('E', octave=6, sampleRate=44100, secs=0.4, bits=8)
+highA.setVolume(1.5)
+
+def main():
+	if len(sys.argv) == 2:
+		participant = sys.argv[1]
+	else:
+		participant = "test"
+	# win = visual.Window((1000, 1000), allowGUI=False, color=1, winType='pyglet', units='norm' )
+	win = visual.Window(fullscr=True, allowGUI=False, color=1, winType='pyglet', units='norm' )
+
+	breakText = visual.TextStim(win=win, text="Take a short break\npress any key to continue",color=u'black')
+	beginningText = visual.TextStim(win=win, text="Press any key to begin the experiment.",color=u'black')
+	endingText = visual.TextStim(win=win, text= "Thank you for your participation.  Please inform the experimenter you have finished.",color=u'black')
+
+	# fixation = visual.ShapeStim(win, vertices=donutVert, fillColor='orange', lineWidth=0, size=.75)
+	fixation = visual.Circle(win=win, fillColor='grey', lineColor='grey', radius=0.1)
+	arrowVert = [(-0.4,0.05),(-0.4,-0.05),(-.2,-0.05),(-.2,-0.1),(0,0),(-.2,0.1),(-.2,0.05)]
+	rightArrow = visual.ShapeStim(win, vertices=arrowVert, fillColor='black', size=.5,pos=(0.1,0))
+	arrowVert = [(0.4,-0.05),(0.4,0.05),(.2,0.05),(.2,0.1),(0,0),(.2,-0.1),(.2,-0.05)]
+	leftArrow = visual.ShapeStim(win, vertices=arrowVert, fillColor='black', size=.5,pos=(-0.1,0))
+
+ 	image_LB = visual.ImageStim(win=win, image='hand_images/LB.bmp')
+ 	image_LP = visual.ImageStim(win=win, image='hand_images/LP.bmp')
+ 	image_RB = visual.ImageStim(win=win, image='hand_images/RB.bmp')
+ 	image_RP = visual.ImageStim(win=win, image='hand_images/RP.bmp')
+ 	image_CRB = visual.ImageStim(win=win, image='hand_images/CRB.bmp')
+ 	image_CRP = visual.ImageStim(win=win, image='hand_images/CRP.bmp')
+ 	image_CLB = visual.ImageStim(win=win, image='hand_images/CLB.bmp')
+ 	image_CLP = visual.ImageStim(win=win, image='hand_images/CLP.bmp')
+ 	image_FL1 = visual.ImageStim(win=win, image='hand_images/FL1.bmp')
+ 	image_FL2 = visual.ImageStim(win=win, image='hand_images/FL2.bmp')
+ 	image_FR1 = visual.ImageStim(win=win, image='hand_images/FR1.bmp')
+ 	image_FR2 = visual.ImageStim(win=win, image='hand_images/FR2.bmp')
+
+ 	images = [[image_RB, image_RP, image_CRB, image_CRP, image_FR1, image_FR2], [image_LB, image_LP, image_CLB, image_CLP, image_FL1, image_FL2]]
+ 	#TODO add neutral data 
+ 	arrows = [rightArrow, leftArrow]
+    
+    #if you want to add another 4 images, put 2*2*2*2*2 instead of 2*2*2*2
+ 	pconditionMatrix = np.zeros((2*2*2*2*2, 4),dtype=int)
+ 	x =0
+ 	for i in xrange(len(images)):
+ 		for j in xrange(len(images[0])):
+ 			for k in xrange(len(arrows)):
+ 				pcongruency = i==k 
+	 			pconditionMatrix[x] = [i,j,k,pcongruency]
+	 			x+=1
+ 	pconditionMatrix = np.repeat(pconditionMatrix, pTRIAL_REPETITION, axis=0)
+ 	np.random.shuffle(pconditionMatrix)
+
+    #if you want to add another 4 images, put 2*2*2*2*2 instead of 2*2*2*2
+ 	conditionMatrix = np.zeros((2*2*2*2*2, 4),dtype=int)
+ 	x =0
+ 	for i in xrange(len(images)):
+ 		for j in xrange(len(images[0])):
+ 			for k in xrange(len(arrows)):
+ 				congruency = i==k 
+	 			conditionMatrix[x] = [i,j,k,congruency]
+	 			x+=1
+ 	conditionMatrix = np.repeat(conditionMatrix, TRIAL_REPETITION, axis=0)
+ 	np.random.shuffle(conditionMatrix)
+
+ 	log = open(r'{0}-log.tsv'.format(participant),'w')
+ 	writer = csv.writer(log,delimiter='\t')
+ 	writer.writerow(LOG_HEADER)
+	trialClock = core.Clock()
+
+ 	"""
+ 	disc - 500 ms
+	empty 1000 ms
+	35 ms prime
+	50 ms empty white screen
+	70 ms arrow in disc
+	blank until press or timeout at 1500ms after arrow offset
+ 	"""
+
+ 	beginningText.setAutoDraw(True)
+ 	win.flip()
+	keys = event.waitKeys(['return'])
+ 	beginningText.setAutoDraw(False)
+ 	beginningText.text
+ 	image_prime = None
+ 	arrow = None
+ 	rtClock = core.Clock()
+ 	trial_time = (500+1000+35+50+70+1500)/1000
+
+ 	for i,trial in enumerate(pconditionMatrix):
+	 	continueRoutine = True
+		routineTimer = core.CountdownTimer()  # to track time remaining of each (non-slip) routine 
+	 	trialClock.reset()
+	 	routineTimer.add(trial_time)
+		#init trial
+	 	drawn = False
+	 	image = images[trial[0]][trial[1]]
+		arrow = arrows[trial[2]]
+		log_row = trial.tolist() + [None]*3
+		event.clearEvents()
+	 	while continueRoutine and routineTimer.getTime() > 0:
+			t = trialClock.getTime()
+			if t >= 0.0 and t < 0.5 and not drawn:
+				fixation.setAutoDraw(True)
+				drawn = True
+			elif t >= 0.5 and t < 1.5 and drawn:
+				fixation.setAutoDraw(False)
+				drawn = False
+			elif t >= 1.5 and t < 1.532 and not drawn:
+	 			image.setAutoDraw(True)
+	 			drawn = True
+	 		elif t >= 1.532 and t<  1.585 and drawn:
+				image.setAutoDraw(False)
+				drawn = False
+			elif t >= 1.585 and  t < 1.65 and not drawn:
+	 			fixation.setAutoDraw(True)
+	 			arrow.setAutoDraw(True)
+	 			drawn = True
+	 			rtClock.reset()
+	 			event.clearEvents()
+	 		elif t > 1.65:
+	 			if drawn:
+					fixation.setAutoDraw(False)
+					arrow.setAutoDraw(False)
+					drawn = False
+				pressed = event.getKeys(keyList=responses)
+				if pressed:
+					rt = rtClock.getTime()*1000
+					response = str.lower(pressed[0])
+					if ((response in response_right and trial[2]==RIGHT) or 
+					   (response in response_left and trial[2]==LEFT)):
+					   accuracy = True
+					else:
+						accuracy = False
+						highA.play()
+					log_row[4] = "%.4f" % rt
+					log_row[5] = int(accuracy)
+					log_row[6] = response
+					continueRoutine = False
+	 		win.flip()
+			if event.getKeys(keyList=['escape','Q','q']):
+				print "q"
+				quit(log)
+		print "{}: {}".format(i,log_row)
+		writer.writerow(log_row)
+		log.flush()
+		if i%30 == 29:
+ 			event.clearEvents()
+			breakText.setAutoDraw(True)
+			win.flip()
+			event.waitKeys()
+			breakText.setAutoDraw(False)
+			win.flip()
+
+ 	breakText.setAutoDraw(True)
+ 	win.flip()
+ 	event.waitKeys()
+ 	breakText.setAutoDraw(False)
+ 	win.flip()
+
+ 	for i,trial in enumerate(conditionMatrix):
+	 	continueRoutine = True
+		routineTimer = core.CountdownTimer()  # to track time remaining of each (non-slip) routine 
+	 	trialClock.reset()
+	 	routineTimer.add(trial_time)
+		#init trial
+	 	drawn = False
+	 	image = images[trial[0]][trial[1]]
+		arrow = arrows[trial[2]]
+		log_row = trial.tolist() + [None]*3
+		event.clearEvents()
+	 	while continueRoutine and routineTimer.getTime() > 0:
+			t = trialClock.getTime()
+			if t >= 0.0 and t < 0.5 and not drawn:
+				fixation.setAutoDraw(True)
+				drawn = True
+			elif t >= 0.5 and t < 1.5 and drawn:
+				fixation.setAutoDraw(False)
+				drawn = False
+			elif t >= 1.5 and t < 1.532 and not drawn:
+	 			image.setAutoDraw(True)
+	 			drawn = True
+	 		elif t >= 1.532 and t<  1.585 and drawn:
+				image.setAutoDraw(False)
+				drawn = False
+			elif t >= 1.585 and  t < 1.65 and not drawn:
+	 			fixation.setAutoDraw(True)
+	 			arrow.setAutoDraw(True)
+	 			drawn = True
+	 			rtClock.reset()
+	 			event.clearEvents()
+	 		elif t > 1.65:
+	 			if drawn:
+					fixation.setAutoDraw(False)
+					arrow.setAutoDraw(False)
+					drawn = False
+				pressed = event.getKeys(keyList=responses)
+				if pressed:
+					rt = rtClock.getTime()*1000
+					response = str.lower(pressed[0])
+					if ((response in response_right and trial[2]==RIGHT) or 
+					   (response in response_left and trial[2]==LEFT)):
+					   accuracy = True
+					else:
+						accuracy = False
+						highA.play()
+					log_row[4] = "%.4f" % rt
+					log_row[5] = int(accuracy)
+					log_row[6] = response
+					continueRoutine = False
+	 		win.flip()
+			if event.getKeys(keyList=['escape','Q','q']):
+				print "q"
+				quit(log)
+		print "{}: {}".format(i,log_row)
+		writer.writerow(log_row)
+		log.flush()
+		if i%30 == 29:
+ 			event.clearEvents()
+			breakText.setAutoDraw(True)
+			win.flip()
+			event.waitKeys()
+			breakText.setAutoDraw(False)
+			win.flip()
+            
+ 	endingText.setAutoDraw(True)
+ 	win.flip()
+ 	event.waitKeys()
+ 	endingText.setAutoDraw(False)
+ 	win.flip()
+
+if __name__ == "__main__":
+   main()
