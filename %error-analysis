@@ -1,5 +1,5 @@
 %% Load data
-data = xlsread('./dataFile.xls'); %Provide own file path
+data = xlsread('file.xlsx'); 
 
 
 %% Sort data into arrays
@@ -10,6 +10,12 @@ congruency=data(:,4);
 rt=data(:,5);
 accuracy=data(:,6);
 
+%% SETTING A GOOD SD INDEX - CHOOSING VALUES ABOVE 2 SDs FROM THE MEAN
+mean_rt = mean(rt);
+std_rt = std(rt);
+goodSDindex = rt < mean_rt + 2 * std_rt;
+
+
 %% CONDITIONS
 % FIRST CONDITION - PALM-COMPATIBLE
 % if(prime_type(i)==1 && congruency(i)==1 && accuracy == 1)
@@ -18,7 +24,7 @@ length_arr=length(prime_side);
 err_count=0;
 count=0;
 for i=1:length_arr
-    if(prime_type(i)==1 && congruency(i)==1 && accuracy(i) == 0)
+    if(prime_type(i)==1 && congruency(i)==1 && accuracy(i) == 0 && goodSDindex(i) == 1)
         err_count= err_count + 1 ;
     elseif(prime_type(i)==1 && congruency(i)==1)
         count=count+1;
@@ -34,7 +40,7 @@ err_palm_comp=100*err_count/count;
 err_count=0;
 count=0;
 for i=1:length_arr
-    if(prime_type(i)==1 && congruency(i)==0 && accuracy(i) == 0)
+    if(prime_type(i)==1 && congruency(i)==0 && accuracy(i) == 0 && goodSDindex(i) == 1)
         err_count= err_count + 1 ;
     elseif(prime_type(i)==1 && congruency(i)==0)
         count=count+1;
@@ -51,7 +57,7 @@ err_palm_incomp=100*err_count/count;
 err_count=0;
 count=0;
 for i=1:length_arr
-    if(prime_type(i)==0 && congruency(i)==1 && accuracy(i) == 0)
+    if(prime_type(i)==0 && congruency(i)==1 && accuracy(i) == 0 && goodSDindex(i) == 1)
         err_count= err_count + 1 ;
     elseif(prime_type(i)==0 && congruency(i)==1 )
         count=count+1;
@@ -66,7 +72,7 @@ err_back_comp=100*err_count/count;
 err_count=0;
 count=0;
 for i=1:length_arr
-    if(prime_type(i)==0 && congruency(i)==0 && accuracy(i) == 0)
+    if(prime_type(i)==0 && congruency(i)==0 && accuracy(i) == 0 && goodSDindex(i) == 1)
         err_count= err_count + 1 ;
     elseif(prime_type(i)==0 && congruency(i)==0 )
         count=count+1;
@@ -74,7 +80,7 @@ for i=1:length_arr
 end
 err_back_incomp=100*err_count/count;
 
-
+% %PLOTTING PERCENT ERROR
 disp=[err_palm_comp err_palm_incomp;err_back_comp err_back_incomp];
 Name= ['Palm' ;'Back'];
 bar(disp)
@@ -82,6 +88,6 @@ legend('Comp','Incomp');
 set(gca,'xticklabel',Name)
 ylabel('Percent Error')
 
-
+% %EXPORTING TO EXCEL
 values=[err_palm_comp,err_palm_incomp,err_back_comp,err_back_incomp];
-xlswrite('percent_error_file',values);
+xlswrite('percenterrorfile',values);
