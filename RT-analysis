@@ -1,5 +1,5 @@
 %% Load data
-data = xlsread('DEBORAH.xlsx'); 
+data = xlsread('file.xlsx'); 
 
 %% Sort data into arrays
 prime_side=data(:,1);
