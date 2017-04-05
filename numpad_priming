@@ -1,0 +1,205 @@
+function hand_priming()
+
+prompt = {'Subject name:'};
+dlg_title = 'Matlabvn Input Dialog';
+num_lines=1;
+input_val = inputdlg(prompt,dlg_title,num_lines);
+subject= input_val{1};
+
+
+%% SET PARAMETERS
+
+params.condition_events_num         = 24;                    % number of events per condition
+params.endpoints                    = {'hand'}; %to add another endpoint 
+                                                %just add another image folder and it's name here 
+
+params.num_of_stimuli               = 2; % 2 prime types for each condition
+
+params.esc_key                      = KbName('Escape');        %37
+params.use_keypads                  = 0;
+params.keyboard_keys                = [KbName('a'),KbName('l')];
+
+
+%%  INITIALIZE PTB
+
+% Here we call some default settings for setting up Psychtoolbox
+PsychDefaultSetup(2);
+
+% Skip sync tests: uncomment if necessary 
+%Screen('Preference', 'SkipSyncTests', 2);
+
+% Get the screen numbers
+screens = Screen('Screens');
+
+% Draw to the external screen if avaliable
+screenNumber = max(screens);
+
+% Define black and white
+white = WhiteIndex(screenNumber);
+black = BlackIndex(screenNumber);
+grey = white / 2;
+inc = white - grey;
+
+%Uncomment for debug
+%PsychDebugWindowConfiguration
+ 
+% Open an on screen window
+[window, windowRect] = PsychImaging('OpenWindow', screenNumber, white);
+
+% hide cursor
+HideCursor;
+
+% Get the size of the on screen window
+[Xpixels, Ypixels] = Screen('WindowSize', window);
+
+
+% Query the frame duration
+ifi = Screen('GetFlipInterval', window)
+
+% Retreive the maximum priority number
+topPriorityLevel = MaxPriority(window);
+
+% Get the centre coordinate of the window
+[xCenter, yCenter] = RectCenter(windowRect);
+
+% Set up alpha-blending for smooth (anti-aliased) lines
+Screen('BlendFunction', window, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
+
+% Numer of frames to wait when specifying good timing
+waitframes = 1;
+
+%% Creating stimuli matrix
+% get files
+prime_side = {'L','R'};
+targets = {'L','R'};
+
+order_matrix = zeros(length(params.endpoints)*length(prime_side)*params.num_of_stimuli*length(targets),5);
+x =1;
+for i = 1:length(params.endpoints)
+    for j = 1:length(prime_side)
+        for k = 1:params.num_of_stimuli
+            for l = 1:length(targets)
+                congruency = j==l;
+                %endpoint, prime side, prime type, target, congruency
+                order_matrix(x,:) = [i,j,k,l,congruency];
+                x=x+1;
+            end
+        end
+    end
+end
+order_matrix = repmat(order_matrix,params.condition_events_num,1);
+order_matrix = order_matrix(randperm(size(order_matrix,1)),:);
+l = size(order_matrix);
+params.results = [order_matrix zeros(l(1),2)];
+%% uploading images
+
+stimuli_cell = cell(length(params.endpoints),length(prime_side),params.num_of_stimuli);
+
+for i = 1:length(params.endpoints)
+    for j = 1:length(prime_side)
+        stimuli = dir(fullfile('stimuli',params.endpoints{i}, [prime_side{j} ,'*.bmp']));
+        for k = 1:params.num_of_stimuli
+            stimuli_cell{i,j,k} = Screen('MakeTexture', window, imread(...
+                fullfile('stimuli',params.endpoints{i},stimuli(k).name)));
+        end
+    end
+end
+
+%
+
+image_loc = [Xpixels/2-150, Ypixels/2-75 ,...
+    Xpixels/2 + 150, Ypixels/2+  75];
+
+%% EXPERIMENT STARTS NOW
+% Draw text in the middle of the screen in Courier in white
+Screen('TextSize', window, 30);
+Screen('TextFont', window, 'Courier');
+DrawFormattedText(window, 'Press any key to begin...', 'center', 'center', black);
+vbl = Screen('Flip', window);
+KbWait([]);
+ 
+vbl = Screen('Flip', window);
+% Screen('Flip', window);
+%HideCursor;
+stop = 0;
+%% PREPARE
+trial_time = (500+1000+35+50+70+1500)/1000;
+for event_num = 1:length(order_matrix)
+    target_side = order_matrix(event_num,4);
+    if target_side == 1
+        rotation = 0;
+    else
+        rotation = 180;
+    end
+    start = tic;
+    while toc(start) < trial_time && ~stop
+        t = toc(start);
+        if t <=0.5
+            Screen('FillOval', window ,grey , image_loc)
+            vbl = Screen('Flip', window, vbl + (waitframes - 0.5) * ifi);
+        elseif t >=1.5 && t <1.535
+            Screen('DrawTexture', window, stimuli_cell{order_matrix(event_num,1), ...
+                order_matrix(event_num,2),order_matrix(event_num,3)}, []);
+            % Tell PTB no more drawing commands will be issued until the next flip
+            Screen('DrawingFinished', window);
+            % Flip to the screen
+            vbl = Screen('Flip', window, vbl + (waitframes - 0.5) * ifi);
+        elseif  t >= 1.585 &&  t < 1.65
+            Screen('FillOval', window ,grey , image_loc)
+            draw_arrow(window, [xCenter, yCenter], rotation, black, [50 50 200 25])
+            vbl = Screen('Flip', window, vbl + (waitframes - 0.5) * ifi);
+        else
+            vbl = Screen('Flip', window, vbl + (waitframes - 0.5) * ifi);
+        end
+        
+        if params.use_keypads
+            %This might be different in different computers when more then
+            %one keyboard is connected you need to specify a keyboard
+            [keyIsDown,secs, keyCode] = KbCheck(6);
+        else
+            [keyIsDown,secs, keyCode] = KbCheck;
+        end
+        if keyCode(params.esc_key)
+            stop = 1;
+        end
+        if (toc(start) > 1.65 && toc(start) < trial_time)
+            if params.use_keypads
+                %check that keypad1 is the left one
+                [keyIsDown1,secs1, keyCode1] = KbCheck(1);
+                [keyIsDown2,secs2, keyCode2] = KbCheck(2);
+                keyIsDown = keyIsDown1 || keyIsDown2;
+                if keyIsDown1 && ~keyIsDown2
+                    keyCode =  params.keyboard_keys(1);
+                elseif ~keyIsDown1 && keyIsDown2
+                    keyCode =  params.keyboard_keys(2);
+                elseif keyIsDown1 && keyIsDown
+                    if secs1 > secs2
+                        keyCode =  params.keyboard_keys(1);
+                    else
+                        keyCode =  params.keyboard_keys(2);
+                    end
+                end
+            else
+                keyCode = find(keyCode,1);
+            end
+            if keyIsDown
+                params.results(event_num, 6) = toc(start)-1.65;
+                accuracy = find(params.keyboard_keys==keyCode) == target_side;
+                params.results(event_num, 7) = accuracy;
+                break
+            end
+        end
+    end
+    if stop
+        break
+    end
+end
+save(fullfile( [subject,'.mat']), 'params')
+
+Priority(0);
+
+toc(start)
+
+sca
+clear all;
+end
